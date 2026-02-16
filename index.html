@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Portal | Check Availability</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --accent: #38bdf8;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            --error: #f43f5e;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 20% 30%, rgba(56, 189, 248, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 80% 70%, rgba(99, 102, 241, 0.15) 0%, transparent 40%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 900px;
+            text-align: center;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        h1 {
+            font-size: clamp(2rem, 5vw, 3.5rem);
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(to right, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p.subtitle {
+            color: var(--text-dim);
+            margin-bottom: 3rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 1.25rem;
+        }
+
+        /* ボタンのデザイン */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 1.5rem;
+            text-decoration: none;
+            color: var(--text-main);
+            font-weight: 600;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(12px);
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .card:hover {
+            transform: translateY(-8px);
+            border-color: var(--accent);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 0 15px rgba(56, 189, 248, 0.3);
+        }
+
+        .card span {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            font-weight: 400;
+        }
+
+        /* ローディング中・エラー時の演出 */
+        .checking {
+            pointer-events: none;
+            opacity: 0.6;
+            cursor: wait;
+        }
+
+        .not-found {
+            border-color: var(--error) !important;
+            animation: shake 0.4s ease-in-out;
+        }
+
+        /* アニメーション */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        footer {
+            margin-top: 4rem;
+            font-size: 0.85rem;
+            color: var(--text-dim);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Directory Portal</h1>
+        <p class="subtitle">Select a category to explore the content</p>
+        
+        <div class="grid" id="mainGrid">
+            </div>
+
+        <footer>
+            &copy; 2026 Project Index | GitHub Pages
+        </footer>
+    </div>
+
+    <script>
+        // 1. 下層フォルダのリスト
+        const configs = [
+            { id: 'best32', label: 'Best 32' },
+            { id: 'best24', label: 'Best 24' },
+            { id: 'best20', label: 'Best 20' },
+            { id: 'best16', label: 'Best 16' },
+            { id: 'best8',  label: 'Best 8' }
+        ];
+
+        const grid = document.getElementById('mainGrid');
+
+        // 2. ボタンの生成
+        configs.forEach(config => {
+            const card = document.createElement('a');
+            card.className = 'card';
+            card.href = `#`; // デフォルトの挙動を抑制
+            
+            card.innerHTML = `
+                ${config.label}
+                <span>Open Folder</span>
+            `;
+
+            // 3. クリック時の存在確認ロジック
+            card.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const targetUrl = `./${config.id}/index.html`;
+
+                // 視覚的なフィードバック（確認中...）
+                card.classList.add('checking');
+                const originalText = card.innerHTML;
+                card.innerHTML = `Checking...`;
+
+                try {
+                    // HTTP HEADリクエストで存在確認
+                    const response = await fetch(targetUrl, { method: 'HEAD' });
+
+                    if (response.ok) {
+                        // 存在すれば移動
+                        window.location.href = targetUrl;
+                    } else {
+                        throw new Error('Not Found');
+                    }
+                } catch (err) {
+                    // 存在しない場合のエフェクト
+                    card.classList.remove('checking');
+                    card.classList.add('not-found');
+                    card.innerHTML = `<span style="color: #f43f5e;">Not Found (404)</span><span>Check path: /${config.id}</span>`;
+                    
+                    // 2秒後に元に戻す
+                    setTimeout(() => {
+                        card.classList.remove('not-found');
+                        card.innerHTML = originalText;
+                    }, 2500);
+                }
+            });
+
+            grid.appendChild(card);
+        });
+    </script>
+</body>
+</html>
