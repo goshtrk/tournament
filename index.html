@@ -21,7 +21,6 @@
             padding: 0;
             font-family: 'Plus Jakarta Sans', sans-serif;
             background-color: var(--bg-color);
-            /* プロジェクター投影時に映えるグラデーション */
             background-image: 
                 radial-gradient(circle at 10% 20%, rgba(56, 189, 248, 0.1) 0%, transparent 40%),
                 radial-gradient(circle at 90% 80%, rgba(99, 102, 241, 0.1) 0%, transparent 40%);
@@ -33,8 +32,8 @@
         }
 
         .container {
-            width: 90%;
-            max-width: 900px;
+            width: 95%;
+            max-width: 1100px;
             margin: auto;
             padding: 4rem 0;
             text-align: center;
@@ -58,32 +57,41 @@
             color: var(--text-dim);
             font-size: 1.1rem;
             line-height: 1.6;
-            max-width: 600px;
+            max-width: 700px;
             margin: 0 auto;
         }
 
-        /* トーナメントボタンのグリッド */
+        /* --- ボタンのグリッド設定（5列横並び） --- */
         .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 1.5rem;
+            grid-template-columns: repeat(5, 1fr); /* 5列固定 */
+            gap: 1rem;
             margin-bottom: 5rem;
+        }
+
+        /* 画面が狭い時（タブレット・スマホ）のレスポンシブ設定 */
+        @media (max-width: 900px) {
+            .grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
         }
 
         .card {
             background: var(--card-bg);
             border: 1px solid var(--glass-border);
-            border-radius: 20px;
-            padding: 2rem 1rem;
+            border-radius: 16px;
+            padding: 1.8rem 0.5rem;
             text-decoration: none;
             color: var(--text-main);
             font-weight: 600;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             display: flex;
             flex-direction: column;
             gap: 0.5rem;
             cursor: pointer;
+            box-sizing: border-box;
         }
 
         .card:hover {
@@ -93,7 +101,7 @@
         }
 
         .card span {
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             color: var(--text-dim);
             text-transform: uppercase;
             letter-spacing: 0.1em;
@@ -105,7 +113,7 @@
             padding-top: 3rem;
             display: flex;
             flex-direction: column;
-            gap: 1.5rem;
+            gap: 1.25rem;
         }
 
         .resource-link {
@@ -124,7 +132,7 @@
             opacity: 0.8;
         }
 
-        /* 状態異常のスタイル */
+        /* 状態制御 */
         .checking { pointer-events: none; opacity: 0.6; }
         .not-found { border-color: var(--error) !important; animation: shake 0.4s ease; }
 
@@ -157,7 +165,7 @@
             </div>
 
         <div class="resources">
-            <p style="font-size: 0.9rem; color: var(--text-dim);">Resources & Documents</p>
+            <p style="font-size: 0.9rem; color: var(--text-dim); margin-bottom: 0.5rem;">Resources & Documents</p>
             <a href="#" class="resource-link">📄 Manual (Google Docs)</a>
             <a href="#" class="resource-link">📁 Assets & CSV Package (Google Drive)</a>
         </div>
@@ -168,7 +176,7 @@
     </div>
 
     <script>
-        // 設定: 表示したいフォルダIDと名前
+        // ボタンに表示したいフォルダとラベルの順序
         const tournamentConfigs = [
             { id: 'best32', label: 'Best 32' },
             { id: 'best24', label: 'Best 24' },
@@ -179,12 +187,13 @@
 
         const grid = document.getElementById('mainGrid');
 
+        // ボタンの表示をリセットする関数
         function setCardNormalState(card, label) {
             card.classList.remove('checking', 'not-found');
             card.innerHTML = `<span>TOURNAMENT</span>${label}`;
         }
 
-        // ボタンの動的生成
+        // 初期描画
         tournamentConfigs.forEach(config => {
             const card = document.createElement('a');
             card.className = 'card';
@@ -201,6 +210,7 @@
                 card.innerHTML = `Checking...`;
 
                 try {
+                    // HEADリクエストで存在確認
                     const response = await fetch(targetUrl, { method: 'HEAD' });
                     if (response.ok) {
                         window.location.href = targetUrl;
@@ -208,9 +218,11 @@
                         throw new Error();
                     }
                 } catch (err) {
+                    // 失敗時の演出
                     card.classList.remove('checking');
                     card.classList.add('not-found');
-                    card.innerHTML = `<span style="color: #f43f5e;">NOT READY</span>Coming Soon`;
+                    card.innerHTML = `<span style="color: var(--error);">NOT READY</span>Coming Soon`;
+                    // 2秒後に元の表示へ戻す
                     setTimeout(() => setCardNormalState(card, config.label), 2000);
                 }
             });
@@ -218,12 +230,13 @@
             grid.appendChild(card);
         });
 
-        // 「戻る」ボタン対策：キャッシュから復元された時に状態をリセット
+        // 「戻る」ボタンで戻った際、"Checking..."で固まるのを防ぐ
         window.addEventListener('pageshow', (event) => {
             if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
                 const cards = document.querySelectorAll('.card');
                 cards.forEach(card => {
-                    setCardNormalState(card, card.dataset.label);
+                    const label = card.dataset.label;
+                    setCardNormalState(card, label);
                 });
             }
         });
