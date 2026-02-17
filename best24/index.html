@@ -506,8 +506,8 @@
     </g>
   </svg>
 
-  <div id="adminOverlay" class="admin-overlay"></div>
-  <div id="adminModal" class="admin-modal">
+  <div id="adminOverlay" class="admin-overlay active"></div>
+  <div id="adminModal" class="admin-modal active">
     <h2>管理パネル</h2>
     
     <div class="instruction-box">
@@ -516,6 +516,7 @@
         <li><span style="color: #ffeb3b;">Shift + 左クリック</span> : 対戦中（ハイライト）</li>
         <li><span style="color: #ffeb3b;">左ダブルクリック</span> : 勝ち上がり ＆ ハイライト解除</li>
         <li><span style="color: #ffeb3b;">右クリック</span> : 勝ち上がり解除 ＆ ハイライト解除</li>
+        <li><span style="color: #ffeb3b;">Mボタン</span> : 管理パネルを表示</li>
       </ul>
     </div>
 
@@ -539,13 +540,13 @@
     <div class="field" style="margin-top: 20px; border-top: 1px solid #555; padding-top: 15px;">
       <label style="display: flex; align-items: center; cursor: pointer;">
         <input type="checkbox" id="particleToggle" style="margin-right: 10px; width: 18px; height: 18px;">
-        背景パーティクルを表示※確認用
+        背景パーティクルを表示
       </label>
     </div>
     <div class="field" style="margin-top: 10px; padding-top: 5px;">
       <label style="display: flex; align-items: center; cursor: pointer;">
         <input type="checkbox" id="gridToggle" style="margin-right: 10px; width: 18px; height: 18px;">
-        ガイド用の方眼紙を表示する※デバッグ用
+        座標確認用デバッグモード（F12と併用）
       </label>
     </div>
     <button onclick="toggleAdmin()">閉じる</button>
@@ -808,9 +809,13 @@
 
       if (isChecked) {
         grid.style.display = 'block';   // 方眼紙を表示
+        document.getElementById('mySVG').style.width = 'auto';
+        document.getElementById('mySVG').style.height = 'auto';
         console.log("レイアウトモード: ON (クリック座標の表示を開始)");
       } else {
         grid.style.display = 'none';    // 方眼紙を非表示
+        document.getElementById('mySVG').style.width = '100vw';
+        document.getElementById('mySVG').style.height = '100vh';
         console.log("レイアウトモード: OFF");
       }
     });
