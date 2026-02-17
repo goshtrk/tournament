@@ -142,20 +142,72 @@
     }
     /* 管理画面（モーダル）のスタイル */
     .admin-modal {
-      display: none; /* 初期は非表示 */
+      display: none;
+      flex-direction: column; /* 縦に並べる */
       position: fixed;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
       width: 400px;
+      max-height: 80vh; /* 画面の8割までに制限 */
       background: #222;
       color: #fff;
-      padding: 20px;
-      border: 2px solid var(--neon-color);
-      border-radius: 10px;
-      z-index: 1000;
-      box-shadow: 0 0 20px rgba(0,0,0,0.8);
+      border: 1px solid #444;
+      z-index: 2000;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+      border-radius: 12px;
+      overflow: hidden;
     }
+
+    /* ヘッダー */
+    .admin-header {
+      padding: 18px 20px;
+      background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
+      border-bottom: 1px solid #444;
+      font-size: 18px;
+      font-weight: 800;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    /* 🛠の部分だけに少し光彩をつける隠し味 */
+    .admin-header::before {
+      content: "🛠";
+      filter: drop-shadow(0 0 5px rgba(193, 166, 255, 0.6));
+    }
+
+    /* メインコンテンツ（ここだけスクロール） */
+    .admin-body {
+      padding: 20px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    /* フッター */
+    .admin-footer {
+      padding: 12px 20px;
+      background: #2a2a2a;
+      border-top: 1px solid #444;
+      display: flex;
+      justify-content: flex-end; /* 右寄せ */
+    }
+
+    /* 閉じるボタン */
+    .close-btn {
+      padding: 8px 25px;
+      background: #444;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background 0.2s;
+    }
+    .close-btn:hover {
+      background: #666;
+    }
+
     .admin-modal.active { display: block; }
     .admin-modal h2 { margin-top: 0; font-size: 18px; border-bottom: 1px solid #555; }
     .admin-modal .field { margin-bottom: 15px; }
@@ -504,52 +556,82 @@
       <use id="rect5_1" href="#rect_5_top" fill="white" class="clickable-rect" />
       <text id="text5_1" font-size="40" x="180" y="45" fill="black" stroke="white" text-anchor="middle" dominant-baseline="middle" transform-origin="180 45"></text>
     </g>
+    <g id="watermark" style="pointer-events: none; opacity: 0.15;">
+      <defs>
+        <linearGradient id="wmGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:white; stop-opacity:1" />
+          <stop offset="100%" style="stop-color:gray; stop-opacity:1" />
+        </linearGradient>
+      </defs>
+      <text x="50%" y="50%" 
+            font-size="280" 
+            font-weight="900"
+            fill="url(#wmGradient)"
+            stroke="white"
+            stroke-width="2"
+            text-anchor="middle" 
+            dominant-baseline="middle" 
+            transform="rotate(-25, 960, 540)" 
+            style="letter-spacing: 0.1em; mix-blend-mode: overlay;">
+        SAMPLE
+      </text>
+    </g>
   </svg>
 
   <div id="adminOverlay" class="admin-overlay active"></div>
   <div id="adminModal" class="admin-modal active">
-    <h2>管理パネル</h2>
-    
-    <div class="instruction-box">
-      <h4 style="margin: 0 0 8px 0; color: #fff; font-size: 14px;">【基本操作】</h4>
-      <ul style="margin: 0; padding-left: 18px; font-size: 12px; color: #eee; line-height: 1.6;">
-        <li><span style="color: #ffeb3b;">Shift + 左クリック</span> : 対戦中（ハイライト）</li>
-        <li><span style="color: #ffeb3b;">左ダブルクリック</span> : 勝ち上がり ＆ ハイライト解除</li>
-        <li><span style="color: #ffeb3b;">右クリック</span> : 勝ち上がり解除 ＆ ハイライト解除</li>
-        <li><span style="color: #ffeb3b;">Mボタン</span> : 管理パネルを表示</li>
-      </ul>
-    </div>
+    <div class="admin-header">管理パネル</div>
+    <div class="admin-body">
+      <div class="instruction-box">
+        <h4 style="margin: 0 0 8px 0; color: #fff; font-size: 14px;">【基本操作】</h4>
+        <ul style="margin: 0; padding-left: 18px; font-size: 12px; color: #eee; line-height: 1.6;">
+          <li><span style="color: #ffeb3b;">Shift + 左クリック</span> : 対戦中（ハイライト）</li>
+          <li><span style="color: #ffeb3b;">左ダブルクリック</span> : 勝ち上がり ＆ ハイライト解除</li>
+          <li><span style="color: #ffeb3b;">右クリック</span> : 勝ち上がり解除 ＆ ハイライト解除</li>
+          <li><span style="color: #ffeb3b;">Mボタン</span> : 管理パネルを表示</li>
+        </ul>
+      </div>
 
-    <div class="field">
-      <label>チーム名CSVを読み込み</label>
-      <input type="file" id="csvInput" accept=".csv">
+      <div class="field">
+        <label>チーム名CSVを読み込み</label>
+        <input type="file" id="csvInput" accept=".csv">
+      </div>
+      <div class="field">
+        <p style="font-size: 11px; color: #ccc;">
+          ※CSV形式: ID, チーム名<br>
+          例: text0_1, チームA<br>
+          改行コードとして<code>&lt;br&gt;</code> タグが使用可能
+        </p>
+      </div>
+      <div class="field" style="margin-top: 10px; padding-top: 5px;">
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input type="checkbox" id="hideToggle" style="margin-right: 10px; width: 18px; height: 18px;">
+          勝利チームを下に残さない
+        </label>
+      </div>
+      <div class="field" style="margin-top: 20px; border-top: 1px solid #555; padding-top: 15px;">
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input type="checkbox" id="particleToggle" style="margin-right: 10px; width: 18px; height: 18px;">
+          背景パーティクルを表示
+        </label>
+      </div>
+      <div class="field" style="margin-top: 10px; padding-top: 5px;">
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input type="checkbox" id="gridToggle" style="margin-right: 10px; width: 18px; height: 18px;">
+          座標確認用デバッグモード（F12と併用）
+        </label>
+      </div>
+      <div class="field" style="margin-top: 20px; border-top: 1px solid #555; padding-top: 15px;">
+        <label>透かし解除パスワード</label>
+        <input type="password" id="pwInput" placeholder="Password..." 
+               style="width: 100%; padding: 5px; background: #333; color: #fff; border: 1px solid #555;">
+        <button onclick="checkPassword()" style="margin-top: 8px; cursor: pointer;">解除</button>
+        <p id="pwMsg" style="font-size: 11px; color: #ff5252; margin-top: 5px;"></p>
+      </div>
     </div>
-    <div class="field">
-      <p style="font-size: 11px; color: #ccc;">
-        ※CSV形式: ID, チーム名<br>
-        例: text0_1, チームA<br>
-        改行コードとして<code>&lt;br&gt;</code> タグが使用可能
-      </p>
+    <div class="admin-footer">
+      <button class="close-btn" onclick="toggleAdmin()">閉じる</button>
     </div>
-    <div class="field" style="margin-top: 10px; padding-top: 5px;">
-      <label style="display: flex; align-items: center; cursor: pointer;">
-        <input type="checkbox" id="hideToggle" style="margin-right: 10px; width: 18px; height: 18px;">
-        勝利チームを下に残さない
-      </label>
-    </div>
-    <div class="field" style="margin-top: 20px; border-top: 1px solid #555; padding-top: 15px;">
-      <label style="display: flex; align-items: center; cursor: pointer;">
-        <input type="checkbox" id="particleToggle" style="margin-right: 10px; width: 18px; height: 18px;">
-        背景パーティクルを表示
-      </label>
-    </div>
-    <div class="field" style="margin-top: 10px; padding-top: 5px;">
-      <label style="display: flex; align-items: center; cursor: pointer;">
-        <input type="checkbox" id="gridToggle" style="margin-right: 10px; width: 18px; height: 18px;">
-        座標確認用デバッグモード（F12と併用）
-      </label>
-    </div>
-    <button onclick="toggleAdmin()">閉じる</button>
   </div>
   <script src="initialTeam.js"></script>
   <script>
@@ -829,61 +911,61 @@
       }
     });
 
-// --- パーティクル背景の制御 ---
-let particlesInitiated = false;
+    // --- パーティクル背景の制御 ---
+    let particlesInitiated = false;
 
-document.getElementById('particleToggle').addEventListener('change', async function(e) {
-  const container = document.getElementById('particle-bg');
+    document.getElementById('particleToggle').addEventListener('change', async function(e) {
+      const container = document.getElementById('particle-bg');
 
-  if (e.target.checked) {
-    container.style.display = 'block';
+      if (e.target.checked) {
+        container.style.display = 'block';
     
-    if (!particlesInitiated) {
-      await tsParticles.load("particle-bg", {
-        background: { color: "#000" },
-        fpsLimit: 60,
-        // インタラクション（マウス連動）をすべてオフ
-        interactivity: {
-          events: {
-            onHover: { enable: false },
-            onClick: { enable: false },
-          }
-        },
-        particles: {
-          color: { value: "#C1A6FF" }, // ネオンカラー
-          links: {
-            color: "#C1A6FF",
-            distance: 150,
-            enable: true,    // 線で繋ぐ
-            opacity: 0.3,
-            width: 1,
-          },
-          move: {
-            enable: true,
-            speed: 0.8,      // 少しゆっくりめに設定
-            direction: "none",
-            outModes: { default: "out" },
-          },
-          number: {
-            value: 70,       // 粒子の数
-            density: { enable: true, area: 800 },
-          },
-          size: { value: { min: 1, max: 3 } },
-          opacity: { value: 0.5 }
-        },
-        detectRetina: true,
-      });
-      particlesInitiated = true;
-    } else {
-      const p = tsParticles.domItem(0);
-      if (p) p.play();
-    }
-  } else {
-    container.style.display = 'none';
-    const p = tsParticles.domItem(0);
-    if (p) p.pause();
-  }
-});
+        if (!particlesInitiated) {
+          await tsParticles.load("particle-bg", {
+            background: { color: "#000" },
+            fpsLimit: 60,
+            // インタラクション（マウス連動）をすべてオフ
+            interactivity: {
+              events: {
+                onHover: { enable: false },
+                onClick: { enable: false },
+              }
+            },
+            particles: {
+              color: { value: "#C1A6FF" }, // ネオンカラー
+              links: {
+                color: "#C1A6FF",
+                distance: 150,
+                enable: true,    // 線で繋ぐ
+                opacity: 0.3,
+                width: 1,
+              },
+              move: {
+                enable: true,
+                speed: 0.8,      // 少しゆっくりめに設定
+                direction: "none",
+                outModes: { default: "out" },
+              },
+              number: {
+                value: 70,       // 粒子の数
+                density: { enable: true, area: 800 },
+              },
+              size: { value: { min: 1, max: 3 } },
+              opacity: { value: 0.5 }
+            },
+            detectRetina: true,
+          });
+          particlesInitiated = true;
+        } else {
+          const p = tsParticles.domItem(0);
+          if (p) p.play();
+        }
+      } else {
+        container.style.display = 'none';
+        const p = tsParticles.domItem(0);
+        if (p) p.pause();
+      }
+    });
 
     // マウス座標の取得処理（チェックボックスの状態を見て判断）
     const svgElement = document.getElementById('mySVG');
@@ -897,6 +979,24 @@ document.getElementById('particleToggle').addEventListener('change', async funct
         console.log(`クリックされた座標: (${x}, ${y})`);
       }
     });
+    // パスワード解除ロジック
+    function checkPassword() {
+      const pw = document.getElementById('pwInput').value;
+      const watermark = document.getElementById('watermark');
+      const msg = document.getElementById('pwMsg');
+      
+      // パスワードを 'futuresquad' に設定した場合
+      if (pw === 'futuresquad') {
+        watermark.style.display = 'none';
+        msg.style.color = '#46ff52';
+        msg.textContent = "透かしを解除しました。";
+        // 5秒後にメッセージを消す
+        setTimeout(() => { msg.textContent = ""; }, 5000);
+      } else {
+        msg.style.color = '#ff5252';
+        msg.textContent = "パスワードが正しくありません。";
+      }
+    }
   </script>
 </body>
 </html>
