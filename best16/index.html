@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html>
+  <!-- 
+    【準備】
+      ・チーム名をteam.jsに入力
+    【操作方法】
+      ・Shiftキー + 左クリック : 対戦中（ハイライト）
+      ・左ダブルクリック       : 勝ち上がり&ハイライト解除
+      ・右クリック            ：勝ち上がり解除&ハイライト解除
+  -->
+<head>
+  <meta charset="UTF-8">
+  <title>TournamentBest16</title>
+  <link rel="stylesheet" href="https://use.typekit.net/kmm5cat.css">
+  <script>
+    (function(d) {
+      var config = {
+        kitId: 'afz4kci',
+        scriptTimeout: 3000,
+        async: true
+      },
+      h=d.documentElement,t=setTimeout(function(){h.className=h.className.replace(/\bwf-loading\b/g,"")+" wf-inactive";},config.scriptTimeout),tk=d.createElement("script"),f=false,s=d.getElementsByTagName("script")[0],a;h.className+=" wf-loading";tk.src='https://use.typekit.net/'+config.kitId+'.js';tk.async=true;tk.onload=tk.onreadystatechange=function(){a=this.readyState;if(f||a&&a!="complete"&&a!="loaded")return;f=true;clearTimeout(t);try{Typekit.load(config)}catch(e){}};s.parentNode.insertBefore(tk,s)
+    })(document);
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/tsparticles@2.12.0/tsparticles.bundle.min.js"></script>
+  <style>
+    :root {
+      /* 色・透明度の一括管理 */
+      --neon-color: #00F0FF;       /* 初期状態 */
+      --neon-color-win: #FF0099;   /* 勝利時 */
+      --core-color: #ffffff;      /* 線の芯の色（白推奨） */
+      --default-zabuton: #ffffff;    /* 通常時の矩形塗りつぶし色 */
+      --default-text: #000000;    /* 通常時の文字色 */
+      --transparent: transparent;   /* 透明 */
+    }
+    body{ 
+      user-select: none;
+      margin: 0;
+      overflow: scroll;
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    ::-webkit-scrollbar { display: none;}
+
+    /* 上に重ねる設定 */
+    #mySVG {
+      position: relative;
+      z-index: 10;
+      display: block;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    text {
+      font-weight: bold;           /*通常 */
+      stroke: var(--default-zabuton);  /*テキストの縁取りをデフォルト色に */
+      stroke-width: 5.0px;         /*縁取りの太さ（適宜調整してください） */
+      paint-order: stroke;         /*縁取りを文字の下に配置して読みやすくする */
+      pointer-events: none;       /* クリック不可 */
+      fill: var(--default-text);  /* テキスト色をデフォルトカラーに */
+      font-family: "ff-din-paneuropean", "noto-sans-cjk-jp", sans-serif;/*フォント指定 */
+      dominant-baseline: central; /*を削除するか、tspan側で制御する */
+      text-anchor: middle;
+    }
+    
+    /* ネオン処理のクラス */
+    .neon {
+      stroke: var(--core-color) !important;
+      transition: 0.3s;
+    }
+
+    use {
+      fill: none;
+      stroke: none;
+    }
+
+    /* 初期ネオン */
+    use[href^="#rect"].neon { 
+      fill: var(--default-zabuton);
+      filter: url(#neon-glow-rect) !important; 
+      stroke: var(--neon-color) !important; 
+      stroke-width: 5px;
+    }
+    use[href^="#path"].neon { 
+      filter: url(#neon-glow-path) !important; 
+      stroke: var(--neon-color) !important; 
+      stroke-width: 6px;
+    }
+    /* 勝利時ネオン */
+    .win-neon {
+        filter: url(#neon-glow-win) !important;
+        stroke: var(--neon-color-win) !important;
+        stroke-width: 6px !important;
+        transition: 0.3s;
+    }
+    /*対戦中ネオン */
+    .match-neon {
+        fill: var(--default-zabuton);
+        filter: url(#neon-glow-win) !important;
+        stroke: var(--neon-color-win) !important;
+        stroke-width: 6px !important;
+        transition: 0.3s;
+    }
+
+    /* 透明化用クラス */
+    .hide {
+      fill: var(--transparent) !important;
+      stroke: var(--transparent) !important;
+    }
+    /* クリック可能な要素のカーソル */
+    .clickable-rect {
+      cursor: pointer;
+      pointer-events: all; 
+    }
+
+    /* 操作説明パネルのスタイル */
+    .instruction-panel {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      padding: 15px 30px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+      pointer-events: none;
+      z-index: 100;
+      text-align: center;
+    }
+    .instruction-panel h4 {
+      margin: 0 0 8px 0;
+      font-size: 16px;
+      letter-spacing: 1px;
+    }
+    .instruction-panel p {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.6;
+      white-space: nowrap;
+    }
+    /* 管理画面（モーダル）のスタイル */
+    .admin-modal {
+      display: none;
+      flex-direction: column; /* 縦に並べる */
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 400px;
+      max-height: 80vh; /* 画面の8割までに制限 */
+      background: #222;
+      color: #fff;
+      border: 1px solid #444;
+      z-index: 2000;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+      border-radius: 12px;
+      overflow: hidden;
+      overflow-y: auto;
+    }
+
+    /* ヘッダー */
+    .admin-header {
+      padding: 18px 20px;
+      background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
+      border-bottom: 1px solid #444;
+      font-size: 18px;
+      font-weight: 800;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    /* 🛠の部分だけに少し光彩をつける隠し味 */
+    .admin-header::before {
+      content: "🛠";
+      filter: drop-shadow(0 0 5px rgba(193, 166, 255, 0.6));
+    }
+
+    /* メインコンテンツ */
+    .admin-body {
+      padding: 20px;
+      flex: 1;
+    }
+
+    /* フッター */
+    .admin-footer {
+      padding: 12px 20px;
+      background: #2a2a2a;
+      border-top: 1px solid #444;
+      display: flex;
+      justify-content: flex-end; /* 右寄せ */
+    }
+
+    /* 閉じるボタン */
+    .close-btn {
+      padding: 8px 25px;
+      background: #444;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background 0.2s;
+    }
+    .close-btn:hover {
+      background: #666;
+    }
+
+    .admin-modal.active { display: block; }
+    .admin-modal h2 { margin-top: 0; font-size: 18px; border-bottom: 1px solid #555; }
+    .admin-modal .field { margin-bottom: 15px; }
+    .admin-modal label { display: block; font-size: 12px; margin-bottom: 5px; color: #aaa; }
+    .admin-modal input[type="file"] { font-size: 12px; }
+    .admin-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 999;
+    }
+    .admin-overlay.active { display: block; }
+    .instruction-box {
+    background: rgba(255, 255, 255, 0.1); /* わずかに背景を明るく */
+    border: 1px solid #555;
+    border-radius: 4px;
+    padding: 12px;
+    margin-bottom: 20px;
+    text-align: left;
+  }
+
+  .instruction-box ul {
+    list-style-type: disc;
+  }
+
+  .instruction-box li span {
+    font-weight: bold;
+  }
+
+  /* --- テキストをゆっくり表示させるアニメーション --- */
+    @keyframes fadeInWin {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+    .fade-in-text {
+      animation: fadeInWin 1.5s ease-out forwards; /* 1.5秒かけて表示 */
+    }
+  </style>
+</head>
+<body>
+  <!--背景用パーティクル-->
+  <div id="particle-bg" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -100; display: none; background-color: #000;"></div>
+  
+  <svg id="mySVG" width="1920" height="1080" viewBox="0 0 1920 1080" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <g id="square paper" style="display: none;">
+      <defs>
+        <pattern id="square" width="10" height="10" patternUnits="userSpaceOnUse" >
+          <rect width="10" height="10" style="fill:none;stroke:#999;stroke-width:1px"/>
+        </pattern>
+        <pattern id="quad" width="100" height="100" patternUnits="userSpaceOnUse" >
+          <rect width="100" height="100" style="stroke:#000;stroke-width:2px" fill="url(#square)"/>
+        </pattern>
+      </defs>
+      <rect width=100% height=100% fill="url(#quad)" style="stroke:#000;stroke-width:2px"/>
+    </g>
+    <defs>
+      <path id="path_1_top" d="M 200 35 L 335 35 L 335 65" stroke-width="5" />
+      <path id="path_1_bot" d="M 200 165 L 335 165 L 335 115" stroke-width="5" />
+      <path id="path_2_top" d="M 200 35 L 235 35 L 235 125" stroke-width="5" />
+      <path id="path_2_bot" d="M 200 295 L 235 295 L 235 185" stroke-width="5" />
+      <path id="path_3_top" d="M 240 40 L 280 40 L 280 260" stroke-width="5" />
+      <path id="path_3_bot" d="M 240 560 L 280 560 L 280 320" stroke-width="5" />
+      <path id="path_4_top" d="M 240 40 L 360 40 L 360 -90" stroke-width="5" />
+      <rect id="rect_1_top" x="0" y="0" width="200" height="70" />
+      <rect id="rect_1_bot" x="0" y="130" width="200" height="70" />
+      <rect id="rect_2_top" x="0" y="0" width="200" height="70" />
+      <rect id="rect_2_bot" x="0" y="260" width="200" height="70" />
+      <rect id="rect_3_top" x="0" y="0" width="240" height="80" />
+      <rect id="rect_3_bot" x="0" y="520" width="240" height="80" />
+      <rect id="rect_4_top" x="0" y="0" width="240" height="80" />
+      <rect id="rect_5_top" x="0" y="0" width="360" height="100" />
+    </defs>
+    
+    <defs>
+      <filter id="neon-glow-rect" x="-100%" y="-100%" width="300%" height="300%">
+        <feGaussianBlur in="SourceAlpha" stdDeviation="3" result="small-blur" />
+        <feGaussianBlur in="SourceAlpha" stdDeviation="10" result="large-blur" />
+        <feFlood flood-color="var(--neon-color)" result="color" />
+        <feComposite in="color" in2="small-blur" operator="in" result="neon-core" />
+        <feComposite in="color" in2="large-blur" operator="in" result="neon-halo" />
+        <feMerge>
+          <feMergeNode in="neon-halo" /> <feMergeNode in="neon-core" /> <feMergeNode in="neon-core" /> <feMergeNode in="neon-core" /> <feMergeNode in="SourceGraphic" /> </feMerge>
+      </filter>
+
+      <filter id="neon-glow-path" x="-100%" y="-100%" width="300%" height="300%">
+        <feGaussianBlur in="SourceAlpha" stdDeviation="5" result="wide-blur" />
+        <feGaussianBlur in="SourceAlpha" stdDeviation="1.5" result="tight-blur" />
+        <feFlood flood-color="var(--neon-color)" result="neon-flood" />
+        <feComposite in="neon-flood" in2="wide-blur" operator="in" result="neon-halo" />
+        <feComposite in="neon-flood" in2="tight-blur" operator="in" result="neon-thick-line" />
+        <feMerge>
+          <feMergeNode in="neon-halo" />       <feMergeNode in="neon-thick-line" /> <feMergeNode in="neon-thick-line" /> <feMergeNode in="SourceGraphic" />    </feMerge>
+      </filter>
+      
+      <filter id="neon-glow-win" x="-100%" y="-100%" width="300%" height="300%">
+        <feGaussianBlur in="SourceAlpha" stdDeviation="4" result="blur" />
+        <feFlood flood-color="var(--neon-color-win)" result="color" />
+        <feComposite in="color" in2="blur" operator="in" result="glow" />
+        <feMerge>
+          <feMergeNode in="glow" /><feMergeNode in="glow" /><feMergeNode in="SourceGraphic" /></feMerge>
+      </filter>
+      
+    </defs>
+
+    <g transform="translate(100, 60)" id="match_1_1" data-next="match_2_1" data-prev-top="none" data-prev-bottom="none" data-opponent="match_1_2">
+      <use id="path1_1" href="#path_1_top" fill="none" stroke="white" />
+      <use id="rect1_1" href="#rect_1_top" fill="white" class="clickable-rect" />
+      <text id="text1_1" font-size="25" x="100" y="35" fill="black" stroke="white" text-anchor="middle" dominant-baseline="middle" transform-origin="75 25" class="initial-text"></text>
+    </g>
+    <g transform="translate(100, 60)" id="match_1_2" data-next="match_2_1" data-prev-top="none" data-prev-bottom="none" data-opponent="match_1_1">
+      <use id="path1_2" href="#path_1_bot" fill="none" stroke="white" />
+      <use id="rect1_2" href="#rect_1_bot" fill="white" class="clickable-rect" />
+      <text id="text1_2" font-size="25" x="100" y="165" fill="black" stroke="white" text-anchor="middle" dominant-baseline="middle" transform-origin="75 25" class="initial-text"></text>
+    </g>
+    <g transform="translate(100, 320)" id="match_1_3" data-next="match_2_2" data-prev-top="none" data-prev-bottom="none" data-opponent="match_1_4">
+      <use id="path1_3" href="#path_1_top" fill="none" stroke="white" />
+      <use id="rect1_3" href="#rect_1_top" fill="white" class="clickable-rect" />
+      <text id="text1_3" font-size="25" x="100" y="35" fill="black" stroke="white" text-anchor="middle" dominant-baseline="middle" transform-origin="75 25" class="initial-text"></text>
+    </g>
+    <g transform="translate(100, 320)" id="match_1_4" data-next="match_2_2" data-prev-top="none" data-prev-bottom="none" data-opponent="match_1_3">
+      <use id="path1_4" href="#path_1_bot" fill="none" stroke="white" />
+      <use id="rect1_4" href="#rect_1_bot" fill="white" class="clickable-rect" />
+      <text id="text1_4" font-size="25" x="100" y="165" fill="black" stroke="white" text-anchor="middle" dominant-baseline="middle" transform-origin="75 25" class="initial-text"></text>
+    </g>
+    <g transform="translate(100, 580)" id="match_1_5" data-next="match_2_3" data-prev-top="none" data-prev-bottom="none" data-opponent="match_1_6">
+      <use id="path1_5" href="#path_1_top" fill="none" stroke="white" />
+      <use id="rect1_5" href="#rect_1_top" fill="white" class="clickable-rect" />
+      <text id="text1_5" font-size="25" x="100" y="35" fill="black" stroke="white" text-anchor="middle" dominant-baseline="middle" transform-origin="75 25" class="initial-text"></text>
+    </g>   
+    <g transform="translate(100, 580)" id="match_1_6" data-next="match_2_3" data-prev-top="none" data-prev-bottom="none" data-opponent="match_1_5">
+      <use id="path1_6" href="#path_1_bot" fill="none" stroke="white" />
+      <use id="rect1_6" href="#rect_1_bot" fill="white" class="clickable-rect" />
+      <text id="text1_6" font-size="25" x="100" y="165" fill="black" stroke="white" text-anchor="middle" dominant-baseline="middle" transform-origin="75 25" class="initial-text"></text>
+    </g>
+    <g transform="translate(100, 840)" id="match_1_7" data-next="match_2_4" data-prev-top="none" data-prev-bottom="none" data-opponent="match_1_8">
+      <use id="path1_7" href="#path_1_top" fill="none" stroke="white" />
+      <use id="rect1_7" href="#rect_1_top" fill="white" class="clickable-rect" />
+      <text id="text1_7" font-size="25" x="100" y="35" fill="black" stroke="white" text-anchor="middle" dominant-baseline="middle" transform-origin="75 25" class="initial-text"></text>
+    </g>
+    <g transform="translate(100, 840)" id="match_1_8" data-next="match_2_4" data-prev-top="none" data-prev-bottom="none" data-opponent="match_1_7">
+      <use id="path1_8" href="#path_1_bot" fill="none" stroke="white" />
+      <use id="rect1_8" href="#rect_1_bot" fill="white" class="clickable-rect" />
+      <text id="text1_8" font-size="25" x="100" y="165" fill="black" stroke="white" text-anchor="middle" dominant-baseline="middle" transform-origin="75 25" class="initial-text"></text>
+    </g>
+    <g transform="translate(1620, 60)" id="match_1_9" data-next="match_2_5" data-prev-top="none" data-prev-bottom="none" data-opponent="match_1_10">
+      <use id="path1_9" href="#path_1_top" fill="none" stroke="white" transform="scale(-1,1)" x="-200" />
+      <use id="rect1_9" href="#rect_1_top" fill="white" class="clickable-rect" />
+      <text id="text1_9" font-size="25" x="100" y="35" fill="black" stroke="white" text-anchor="middle" dominant-baseline="middle" transform-origin="75 25" class="initial-text"></text>
+    </g>
+    <g transform="translate(1620, 60)" id="match_1_10" data-next="match_2_5" data-prev-top="none" data-prev-bottom="none" data-opponent="match_1_9">
+      <use id="path1_10" href="#path_1_bot" fill="none" stroke="white" transform="scale(-1,1)" x="-200" />
+      <use id="rect1_10" href="#rect_1_bot" fill="white" class="clickable-rect" />
+      <text id="text1_10" font-size="25" x="100" y="165" fill="black" stroke="white" text-anchor="middle" dominant-baseline="middle" transform-origin="75 25" class="initial-text"></text>
+    </g>
+    <g transform="translate(1620, 320)" id="match_1_11" data-next="match_2_6" data-prev-top="none" data-prev-bottom="none" data-opponent="match_1_12">
+      <use id="path1_11" href="#path_1_top" fill="none" stroke="white" transform="scale(-1,1)" x="-200" />
+      <use id="rect1_11" href="#rect_1_top" fill="white" class="clickable-rect" />
+      <text id="text1_11" font-size="25" x="100" y="35" fill="black" stroke="white" text-anchor="middle" dominant-baseline="middle" transform-origin="75 25" class="initial-text"></text>
+    </g>
+    <g transform="translate(1620, 320)" id="match_1_12" data-next="match_2_6" data-prev-top="none" data-prev-bottom="none" data-opponent="match_1_11">
+      <use id="path1_12" href="#path_1_bot" fill="none" stroke="white" transform="scale(-1,1)" x="-200" />
+      <use id="rect1_12" href="#rect_1_bot" fill="white" class="clickable-rect" />
+      <text id="text1_12" font-size="25" x="100" y="165" fill="black" stroke="white" text-anchor="middle" dominant-baseline="middle" transform-origin="75 25" class="initial-text"></text>
+    </g>
+    <g transform="translate(1620, 580)" id="match_1_13" data-next="match_2_7" data-prev-top="none" data-prev-bottom="none" data-opponent="match_1_14">
+      <use id="path1_13" href="#path_1_top" fill="none" stroke="white" transform="scale(-1,1)" x="-200" />
+      <use id="rect1_13" href="#rect_1_top" fill="white" class="clickable-rect" />
+      <text id="text1_13" font-size="25" x="100" y="35" fill="black" stroke="white" text-anchor="middle" dominant-baseline="middle" transform-origin="75 25" class="initial-text"></text>
+    </g>   
+    <g transform="translate(1620, 580)" id="match_1_14" data-next="match_2_7" data-prev-top="none" data-prev-bottom="none" data-opponent="match_1_13">
+      <use id="path1_14" href="#path_1_bot" fill="none" stroke="white" transform="scale(-1,1)" x="-200" />
+      <use id="rect1_14" href="#rect_1_bot" fill="white" class="clickable-rect" />
+      <text id="text1_14" font-size="25" x="100" y="165" fill="black" stroke="white" text-anchor="middle" dominant-baseline="middle" transform-origin="75 25" class="initial-text"></text>
+    </g>
+    <g transform="translate(1620, 840)" id="match_1_15" data-next="match_2_8" data-prev-top="none" data-prev-bottom="none" data-opponent="match_1_16">
+      <use id="path1_15" href="#path_1_top" fill="none" stroke="white" transform="scale(-1,1)" x="-200" />
+      <use id="rect1_15" href="#rect_1_top" fill="white" class="clickable-rect" />
+      <text id="text1_15" font-size="25" x="100" y="35" fill="black" stroke="white" text-anchor="middle" dominant-baseline="middle" transform-origin="75 25" class="initial-text"></text>
+    </g>
+    <g transform="translate(1620, 840)" id="match_1_16" data-next="match_2_8" data-prev-top="none" data-prev-bottom="none" data-opponent="match_1_15">
+      <use id="path1_16" href="#path_1_bot" fill="none" stroke="white" transform="scale(-1,1)" x="-200" />
+      <use id="rect1_16" href="#rect_1_bot" fill="white" class="clickable-rect" />
+      <text id="text1_16" font-size="25" x="100" y="165" fill="black" stroke="white" text-anchor="middle" dominant-baseline="middle" transform-origin="75 25" class="initial-text"></text>
+    </g>
+
+    <g transform="translate(335, 125)" id="match_2_1" data-next="match_3_1" data-prev-top="match_1_1" data-prev-bottom="match_1_2" data-opponent="match_2_2">
+      <use id="path2_1" href="#path_2_top" fill="none" stroke="white" />
+      <use id="rect2_1" href="#rect_2_top" fill="white" class="clickable-rect" />
+      <text id="text2_1" font-size="25" x="100" y="35" fill="black" stroke="white" text-anchor="middle" dominant-baseline="middle" transform-origin="75 25"></text>
+    </g>
+    <g transform="translate(335, 125)" id="match_2_2" data-next="match_3_1" data-prev-top="match_1_3" data-prev-bottom="match_1_4" data-opponent="match_2_1">
+      <use id="path2_2" href="#path_2_bot" fill="none" stroke="white" />
+      <use id="rect2_2" href="#rect_2_bot" fill="white" class="clickable-rect" />
+      <text id="text2_2" font-size="25" x="100" y="295" fill="black" stroke="white" text-anchor="middle" dominant-baseline="middle" transform-origin="75 25"></text>
+    </g>
+    <g transform="translate(335, 645)" id="match_2_3" data-next="match_3_2" data-prev-top="match_1_5" data-prev-bottom="match_1_6" data-opponent="match_2_4">
+      <use id="path2_3" href="#path_2_top" fill="none" stroke="white" />
+      <use id="rect2_3" href="#rect_2_top" fill="white" class="clickable-rect" />
+      <text id="text2_3" font-size="25" x="100" y="35" fill="black" stroke="white" text-anchor="middle" dominant-baseline="middle" transform-origin="75 25"></text>
+    </g>
+    <g transform="translate(335, 645)" id="match_2_4" data-next="match_3_2" data-prev-top="match_1_7" data-prev-bottom="match_1_8" data-opponent="match_2_3">
+      <use id="path2_4" href="#path_2_bot" fill="none" stroke="white" />
+      <use id="rect2_4" href="#rect_2_bot" fill="white" class="clickable-rect" />
+      <text id="text2_4" font-size="25" x="100" y="295" fill="black" stroke="white" text-anchor="middle" dominant-baseline="middle" transform-origin="75 25"></text>
+    </g>
+    <g transform="translate(1385, 125)" id="match_2_5" data-next="match_3_3" data-prev-top="match_1_9" data-prev-bottom="match_1_10" data-opponent="match_2_6">
+      <use id="path2_5" href="#path_2_top" fill="none" stroke="white" transform="scale(-1,1)" x="-200" />
+      <use id="rect2_5" href="#rect_2_top" fill="white" class="clickable-rect" />
+      <text id="text2_5" font-size="25" x="100" y="35" fill="black" stroke="white" text-anchor="middle" dominant-baseline="middle" transform-origin="75 25"></text>
+    </g>
+    <g transform="translate(1385, 125)" id="match_2_6" data-next="match_3_3" data-prev-top="match_1_11" data-prev-bottom="match_1_12" data-opponent="match_2_5">
+      <use id="path2_6" href="#path_2_bot" fill="none" stroke="white" transform="scale(-1,1)" x="-200" />
+      <use id="rect2_6" href="#rect_2_bot" fill="white" class="clickable-rect" />
+      <text id="text2_6" font-size="25" x="100" y="295" fill="black" stroke="white" text-anchor="middle" dominant-baseline="middle" transform-origin="75 25"></text>
+    </g>
+    <g transform="translate(1385, 645)" id="match_2_7" data-next="match_3_4" data-prev-top="match_1_13" data-prev-bottom="match_1_14" data-opponent="match_2_8">
+      <use id="path2_7" href="#path_2_top" fill="none" stroke="white" transform="scale(-1,1)" x="-200" />
+      <use id="rect2_7" href="#rect_2_top" fill="white" class="clickable-rect" />
+      <text id="text2_7" font-size="25" x="100" y="35" fill="black" stroke="white" text-anchor="middle" dominant-baseline="middle" transform-origin="75 25"></text>
+    </g>
+    <g transform="translate(1385, 645)" id="match_2_8" data-next="match_3_4" data-prev-top="match_1_15" data-prev-bottom="match_1_16" data-opponent="match_2_7">
+      <use id="path2_8" href="#path_2_bot" fill="none" stroke="white" transform="scale(-1,1)" x="-200" />
+      <use id="rect2_8" href="#rect_2_bot" fill="white" class="clickable-rect" />
+      <text id="text2_8" font-size="25" x="100" y="295" fill="black" stroke="white" text-anchor="middle" dominant-baseline="middle" transform-origin="75 25"></text>
+    </g>
+
+    <g transform="translate(450, 250)" id="match_3_1" data-next="match_4_1" data-prev-top="match_2_1" data-prev-bottom="match_2_2" data-opponent="match_3_2">
+      <use id="path3_1" href="#path_3_top" fill="none" stroke="white" />
+      <use id="rect3_1" href="#rect_3_top" fill="white" class="clickable-rect" />
+      <text id="text3_1" font-size="25"  x="120" y="40" fill="black" stroke="white" text-anchor="middle" dominant-baseline="middle" transform-origin="95 30"></text>
+    </g>
+    <g transform="translate(450, 250)" id="match_3_2" data-next="match_4_1" data-prev-top="match_2_3" data-prev-bottom="match_2_4" data-opponent="match_3_1">
+      <use id="path3_2" href="#path_3_bot" fill="none" stroke="white" />
+      <use id="rect3_2" href="#rect_3_bot" fill="white" class="clickable-rect" />
+      <text id="text3_2" font-size="25"  x="120" y="560" fill="black" stroke="white" text-anchor="middle" dominant-baseline="middle" transform-origin="95 30"></text>
+    </g>
+    <g transform="translate(1230, 250)" id="match_3_3" data-next="match_4_2" data-prev-top="match_2_5" data-prev-bottom="match_2_6" data-opponent="match_3_4">
+      <use id="path3_3" href="#path_3_top" fill="none" stroke="white" transform="scale(-1,1)" x="-240" />
+      <use id="rect3_3" href="#rect_3_top" fill="white" class="clickable-rect" />
+      <text id="text3_3" font-size="25"  x="120" y="40" fill="black" stroke="white" text-anchor="middle" dominant-baseline="middle" transform-origin="95 30"></text>
+    </g>
+    <g transform="translate(1230, 250)" id="match_3_4" data-next="match_4_2" data-prev-top="match_2_7" data-prev-bottom="match_2_8" data-opponent="match_3_3">
+      <use id="path3_4" href="#path_3_bot" fill="none" stroke="white" transform="scale(-1,1)" x="-240" />
+      <use id="rect3_4" href="#rect_3_bot" fill="white" class="clickable-rect" />
+      <text id="text3_4" font-size="25"  x="120" y="560" fill="black" stroke="white" text-anchor="middle" dominant-baseline="middle" transform-origin="95 30"></text>
+    </g>
+
+    <g transform="translate(610, 510)" id="match_4_1" data-next="match_5_1" data-prev-top="match_3_1" data-prev-bottom="match_3_2" data-opponent="match_4_2">
+      <use id="path4_1" href="#path_4_top" fill="none" stroke="white" />
+      <use id="rect4_1" href="#rect_4_top" fill="white" class="clickable-rect" />
+      <text id="text4_1" font-size="25" x="120" y="40" fill="black" stroke="white" text-anchor="middle" dominant-baseline="middle" transform-origin="95 30"></text>
+    </g>
+    <g transform="translate(1090, 510)" id="match_4_2" data-next="match_5_1" data-prev-top="match_3_3" data-prev-bottom="match_3_4" data-opponent="match_4_1">
+      <use id="path4_2" href="#path_4_top" fill="none" stroke="white" transform="scale(-1,1)" x="-240" />
+      <use id="rect4_2" href="#rect_4_top" fill="white" class="clickable-rect" />
+      <text id="text4_2" font-size="25" x="120" y="40" fill="black" stroke="white" text-anchor="middle" dominant-baseline="middle" transform-origin="95 30"></text>
+    </g>
+    
+    <g transform="translate(780, 330)" id="match_5_1" data-next="none" data-prev-top="match_4_1" data-prev-bottom="match_4_2" data-opponent="none">
+      <use id="rect5_1" href="#rect_5_top" fill="white" class="clickable-rect" />
+      <text id="text5_1" font-size="40" x="180" y="50" fill="black" stroke="white" text-anchor="middle" dominant-baseline="middle" transform-origin="180 45"></text>
+    </g>
+    <g id="watermark" style="pointer-events: none; opacity: 0.15;">
+      <defs>
+        <linearGradient id="wmGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:white; stop-opacity:1" />
+          <stop offset="100%" style="stop-color:gray; stop-opacity:1" />
+        </linearGradient>
+      </defs>
+      <text x="50%" y="50%" 
+            font-size="280" 
+            font-weight="900"
+            fill="url(#wmGradient)"
+            stroke="white"
+            stroke-width="2"
+            text-anchor="middle" 
+            dominant-baseline="middle" 
+            transform="rotate(-25, 960, 540)" 
+            style="letter-spacing: 0.1em; mix-blend-mode: overlay;">
+        SAMPLE
+      </text>
+    </g>
+  </svg>
+
+  <div id="adminOverlay" class="admin-overlay active"></div>
+  <div id="adminModal" class="admin-modal active">
+    <div class="admin-header">管理パネル</div>
+    <div class="admin-body">
+      <div class="instruction-box">
+        <h4 style="margin: 0 0 8px 0; color: #fff; font-size: 14px;">【基本操作】</h4>
+        <ul style="margin: 0; padding-left: 18px; font-size: 12px; color: #eee; line-height: 1.6;">
+          <li><span style="color: #ffeb3b;">Shift + 左クリック</span> : 対戦中（ハイライト）</li>
+          <li><span style="color: #ffeb3b;">左ダブルクリック</span> : 勝ち上がり ＆ ハイライト解除</li>
+          <li><span style="color: #ffeb3b;">右クリック</span> : 勝ち上がり解除 ＆ ハイライト解除</li>
+          <li><span style="color: #ffeb3b;">Mボタン</span> : 管理パネルを表示</li>
+        </ul>
+      </div>
+
+      <div class="field">
+        <label>チーム名CSVを読み込み</label>
+        <input type="file" id="csvInput" accept=".csv">
+      </div>
+      <div class="field">
+        <p style="font-size: 11px; color: #ccc;">
+          ※CSV形式: ID, チーム名<br>
+          例: text0_1, チームA<br>
+          改行コードとして<code>&lt;br&gt;</code> タグが使用可能
+        </p>
+      </div>
+      <div class="field" style="margin-top: 10px; padding-top: 5px;">
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input type="checkbox" id="hideToggle" style="margin-right: 10px; width: 18px; height: 18px;">
+          勝利チームを下に残さない
+        </label>
+      </div>
+      <div class="field" style="margin-top: 20px; border-top: 1px solid #555; padding-top: 15px;">
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input type="checkbox" id="particleToggle" style="margin-right: 10px; width: 18px; height: 18px;">
+          背景パーティクルを表示
+        </label>
+      </div>
+      <div class="field" style="margin-top: 10px; padding-top: 5px;">
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input type="checkbox" id="gridToggle" style="margin-right: 10px; width: 18px; height: 18px;">
+          座標確認用デバッグモード（F12と併用）
+        </label>
+      </div>
+      <div class="field" style="margin-top: 20px; border-top: 1px solid #555; padding-top: 15px;">
+        <label>透かし解除パスワード</label>
+        <input type="password" id="pwInput" placeholder="Password..." 
+               style="width: 100%; padding: 5px; background: #333; color: #fff; border: 1px solid #555;">
+        <button onclick="checkPassword()" style="margin-top: 8px; cursor: pointer;">解除</button>
+        <p id="pwMsg" style="font-size: 11px; color: #ff5252; margin-top: 5px;"></p>
+      </div>
+    </div>
+    <div class="admin-footer">
+      <button class="close-btn" onclick="toggleAdmin()">閉じる</button>
+    </div>
+  </div>
+  <script src="initialTeam.js"></script>
+  <script>
+    // 初期値及びサイジングを実行 ---
+    document.querySelectorAll('.initial-text').forEach(el => {
+      const keyName = el.id.replace('text', 'team') ;
+      const teamName = TEAM_DATA[keyName] || "未入力";
+      adjustFontSize(el, teamName, 140);
+    });
+ 
+    //テキストが指定した幅(maxWidth)に収まるまでフォントサイズを下げる
+    function adjustFontSize(el, name, maxWidth) {
+      // 1. 親グループから対応する矩形要素(use要素)を探す
+      const group = el.closest('g');
+      const useRect = group ? group.querySelector('use[href^="#rect"]') : null;
+  
+      // デフォルト値の準備（要素が見つからない場合のバックアップ）
+      let rectWidth = maxWidth || 130;
+      let rectHeight = 50;
+
+      // 2. 枠（矩形）のサイズを動的に取得
+      if (useRect) {
+        const href = useRect.getAttribute('href');
+        if (href) {
+          const rectId = href.substring(1);
+          const originRect = document.getElementById(rectId);
+
+          if (originRect) {
+            // SVGの属性値を取得して数値化
+            rectWidth = parseFloat(originRect.getAttribute('width')) || rectWidth;
+            rectHeight = parseFloat(originRect.getAttribute('height')) || rectHeight;
+          }
+        }
+      }
+
+      // 3. 余白（パディング）の設定
+      // 矩形サイズに対して横90%、縦85%を上限とする（かつかつにならないように）
+      const safeMaxWidth = rectWidth * 0.9;
+      const safeMaxHeight = rectHeight * 0.85;
+
+      // 4. 初期フォントサイズの設定
+      // 決勝枠(text5)は大きく、それ以外は標準サイズから開始
+      let fontSize = el.id.includes('text5') ? 60 : 35;
+      const lines = name.split('<br>');
+  
+      el.style.fontSize = fontSize + "px";
+      el.textContent = '';
+
+      // 5. <tspan>要素の作成と配置
+      lines.forEach((line, index) => {
+        const tspan = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
+        tspan.textContent = line.trim();
+        tspan.setAttribute("x", el.getAttribute("x")); // 親のX座標を継承
+
+        if (index === 0) {
+          if (lines.length > 1) {
+            // 複数行：全体の中央を出すため、1行目を(行数に応じて)上にずらす
+            tspan.setAttribute("dy", `-${(lines.length - 1) * 0.6}em`);
+          } else {
+            // 1行：dominant-baseline: central との組み合わせで中央にくる値
+            tspan.setAttribute("dy", "-0.2em");
+          }
+        } else {
+          // 2行目以降の行間（1.0em = 1文字分）
+          tspan.setAttribute("dy", "1.0em");
+        }
+        el.appendChild(tspan);
+      });
+      
+
+
+      // 6. サイズ調整ループ
+      // 横幅（width）または高さ（height）が安全圏を超える間、フォントサイズを下げる
+      try {
+        while (fontSize > 8) { // 最小フォントサイズを8pxに設定
+          const bbox = el.getBBox();
+          // 幅と高さの両方が収まったらループ終了
+          if (bbox.width <= safeMaxWidth && bbox.height <= safeMaxHeight) {
+            break;
+          }
+          fontSize -= 0.5; // 0.5px刻みで精密に調整
+          el.style.fontSize = fontSize + "px";
+        }
+      } catch (e) {
+        // getBBoxは要素が非表示だとエラーを投げることがあるため
+        console.warn("BBoxの取得に失敗しました:", e);
+      }
+    }
+
+    //色の定義
+    const NEON = 'neon';
+    const MATCH_NEON = 'match-neon';
+    const WIN_NEON = 'win-neon';
+    const HIDE = 'hide';
+    
+    // 初期状態：すべての要素をネオンに
+    document.querySelectorAll('use[href^="#rect"], use[href^="#path"]').forEach(el => {
+        el.classList.add(NEON); 
+    });
+
+    // クリックイベントハンドラを追加
+    // 全てのクリック用要素（clickable-rect）を取得してループ処理
+    document.querySelectorAll('.clickable-rect').forEach(rect => {
+        const group = rect.closest('g'); // 親の <g> 要素を取得
+            
+        // 1. 左ダブルクリック：勝ち上がり
+        rect.addEventListener('dblclick', () => {
+          const nextGroup = document.getElementById(group.dataset.next); 
+          const opponentGroup = document.getElementById(group.dataset.opponent);
+          if (!nextGroup) return; //勝ち上がりが無ければ処理をパスする。
+
+          const myPath = group.querySelector('use[id^="path"]');
+          const myText = group.querySelector('text');
+          const nextText = nextGroup.querySelector('text');
+          const opponentPath = opponentGroup.querySelector('use[id^="path"]');
+          const opponentText = opponentGroup.querySelector('text');
+          
+          let rawText = "";
+          const tspans = myText.querySelectorAll('tspan');
+          if (tspans.length > 0) {
+            rawText = Array.from(tspans).map(t => t.textContent).join('<br>');// すでに改行されている場合は <br> で繋ぎ直す
+          } else {
+            rawText = myText.textContent;
+          }
+
+          // 1. 一旦アニメーションクラスを削除（連続操作用）
+          nextText.classList.remove('fade-in-text');
+          myText.classList.remove('fade-in-text');
+
+          // 2. 名前の流し込みとサイズ調整を実行
+          let nextMaxWidth = nextText.id.includes('text5') ? 340 : (nextText.id.includes('text4') || nextText.id.includes('text3')) ? 170 : 130;
+          adjustFontSize(nextText, rawText, nextMaxWidth);
+          // 3. 1フレーム待ってからアニメーションクラスを付与して「ゆっくり表示」を開始
+          requestAnimationFrame(() => {
+            nextText.classList.add('fade-in-text');
+          });
+          // 4. 自分のパスをマゼンタに、相手を消灯（または初期色）
+          if(myPath) {
+              myPath.classList.remove(NEON);
+              myPath.classList.add(WIN_NEON);
+          }
+          if (opponentPath) {
+              opponentPath.classList.remove(WIN_NEON);
+              opponentPath.classList.add(NEON);
+          }
+
+          /* テキスト透明化処理 */
+          if(isHideMode){
+            myText.classList.add(HIDE); //自身のテキストを透明化。
+            opponentText.classList.remove(HIDE);//相手のテキスト透明化を解除。
+          }
+          
+          // 全ての勝利ネオンをリセット（ネオン解除）
+          document.querySelectorAll('use[href^="#rect"].' + MATCH_NEON).forEach(el => el.classList.remove(MATCH_NEON));
+          document.querySelectorAll('use[href^="#rect"]').forEach(el => el.classList.add(NEON));
+        
+          //勝ち上がり線の描画順の変更
+          if (opponentGroup) {opponentGroup.after(group);}
+        });
+      
+        // 2. 右クリック：勝ち上がり解除
+        rect.addEventListener('contextmenu', (e) => {
+          e.preventDefault(); //右クリックした時にメニューが出ないようにする
+          const prevTop = document.getElementById(group.dataset.prevTop);
+          const prevBottom = document.getElementById(group.dataset.prevBottom);
+          
+          // 前の試合のパスとテキストを安全にリセット
+          [prevTop, prevBottom].forEach(prev => {
+            if (prev) {
+              const p = prev.querySelector('use[href^="#path"]');
+              const t = prev.querySelector('text');
+              if (p) {
+                p.classList.remove(WIN_NEON)
+                p.classList.add(NEON);
+              }  //１つ前のパスのネオンを消す
+              if (t) t.classList.remove(HIDE);  //１つ前のテキスト透明化を解除。
+              group.querySelector('text').textContent = ""; //自身のテキストを削除
+            }
+          });
+
+          // 全ての勝利ネオンをリセット（ネオン解除）
+          document.querySelectorAll('use[href^="#rect"].' + MATCH_NEON).forEach(el => el.classList.remove(MATCH_NEON));
+          document.querySelectorAll('use[href^="#rect"]').forEach(el => el.classList.add(NEON));
+
+        });
+        // 3. Shift + 左クリック：対戦中ハイライト
+        rect.addEventListener('click', (e) => {
+            if (e.shiftKey) {
+              // 全ての勝利ネオンをリセット（ネオン解除）
+              document.querySelectorAll('use[href^="#rect"].' + MATCH_NEON).forEach(el => el.classList.remove(MATCH_NEON));
+              document.querySelectorAll('use[href^="#rect"]').forEach(el => el.classList.add(NEON));
+              
+              //ネオン処理
+              const myRect = group.querySelector('use[id^="rect"]');
+              const opponentRect = document.getElementById(group.dataset.opponent);
+              if (myRect){
+                myRect.classList.remove(NEON);
+                myRect.classList.add(MATCH_NEON);
+              } 
+              if (opponentRect) {
+                opponentRect.querySelector('use[id^="rect"]').classList.remove(NEON)
+                opponentRect.querySelector('use[id^="rect"]').classList.add(MATCH_NEON);
+              } 
+            }
+        });   
+    });
+    // --- 管理画面の制御 ---
+    function toggleAdmin() {
+      document.getElementById('adminModal').classList.toggle('active');
+      document.getElementById('adminOverlay').classList.toggle('active');
+    }
+
+    let isHideMode = false; // デフォルトは実行しない（OFF）
+    
+    // "M" キーで管理画面を開く
+    window.addEventListener('keydown', (e) => {
+      if (e.key.toLowerCase() === 'm') toggleAdmin();
+      if (e.key === 'Escape') {
+        document.getElementById('adminModal').classList.remove('active');
+        document.getElementById('adminOverlay').classList.remove('active');
+      }
+    });
+
+    // --- CSV読み込み処理 ---
+    document.getElementById('csvInput').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const text = event.target.result;
+        parseCSV(text);
+      };
+      reader.readAsText(file);
+    });
+
+    function parseCSV(data) {
+      const lines = data.split(/\r\n|\n/);
+      lines.forEach(line => {
+        const [id, name] = line.split(',');
+        if (id && name) {
+          // プレ頭文字（text）がついていない場合を考慮して補完
+          const targetId = id.startsWith('text') ? id : 'text' + id;
+          const textEl = document.getElementById(targetId);
+          if (textEl) {
+            let maxWidth = textEl.id.includes('text5') ? 340 : (textEl.id.includes('text4') || textEl.id.includes('text3')) ? 170 : 130;
+            adjustFontSize(textEl, name.trim(), maxWidth);
+          }
+        }
+      });
+      console.log("CSV loaded and applied.");
+    }
+    // 方眼紙と座標ログの統合管理
+    document.getElementById('gridToggle').addEventListener('change', function(e) {
+      const grid = document.getElementById('square paper');
+      const isChecked = e.target.checked;
+
+      if (isChecked) {
+        grid.style.display = 'block';   // 方眼紙を表示
+        document.getElementById('mySVG').style.width = 'auto';
+        document.getElementById('mySVG').style.height = 'auto';
+        console.log("レイアウトモード: ON (クリック座標の表示を開始)");
+      } else {
+        grid.style.display = 'none';    // 方眼紙を非表示
+        document.getElementById('mySVG').style.width = '100vw';
+        document.getElementById('mySVG').style.height = '100vh';
+        console.log("レイアウトモード: OFF");
+      }
+    });
+    // 勝ち上がり時の処理チームの勝ち上がり（文字を消す）の管理
+    document.getElementById('hideToggle').addEventListener('change', function(e) {
+      const isChecked = e.target.checked;
+      if (isChecked) {
+        isHideMode = true; // 勝ち上がり
+      } else {
+        isHideMode = false; // 勝ち残り
+      }
+    });
+
+    // --- パーティクル背景の制御 ---
+    let particlesInitiated = false;
+
+    document.getElementById('particleToggle').addEventListener('change', async function(e) {
+      const container = document.getElementById('particle-bg');
+
+      if (e.target.checked) {
+        container.style.display = 'block';
+    
+        if (!particlesInitiated) {
+          await tsParticles.load("particle-bg", {
+            background: { color: "#000" },
+            fpsLimit: 60,
+            // インタラクション（マウス連動）をすべてオフ
+            interactivity: {
+              events: {
+                onHover: { enable: false },
+                onClick: { enable: false },
+              }
+            },
+            particles: {
+              color: { value: "#00F0FF" }, // ネオンカラー
+              links: {
+                color: "#00F0FF",
+                distance: 150,
+                enable: true,    // 線で繋ぐ
+                opacity: 0.3,
+                width: 1,
+              },
+              move: {
+                enable: true,
+                speed: 0.8,      // 少しゆっくりめに設定
+                direction: "none",
+                outModes: { default: "out" },
+              },
+              number: {
+                value: 70,       // 粒子の数
+                density: { enable: true, area: 800 },
+              },
+              size: { value: { min: 1, max: 3 } },
+              opacity: { value: 0.5 }
+            },
+            detectRetina: true,
+          });
+          particlesInitiated = true;
+        } else {
+          const p = tsParticles.domItem(0);
+          if (p) p.play();
+        }
+      } else {
+        container.style.display = 'none';
+        const p = tsParticles.domItem(0);
+        if (p) p.pause();
+      }
+    });
+
+    // マウス座標の取得処理（チェックボックスの状態を見て判断）
+    const svgElement = document.getElementById('mySVG');
+    svgElement.addEventListener('click', (event) => {
+      // チェックボックスがチェックされている時だけ実行
+      const isGridActive = document.getElementById('gridToggle').checked;
+  
+      if (isGridActive) {
+        const x = event.offsetX;
+        const y = event.offsetY;
+        console.log(`クリックされた座標: (${x}, ${y})`);
+      }
+    });
+    // パスワード解除ロジック
+    function checkPassword() {
+      const pw = document.getElementById('pwInput').value;
+      const watermark = document.getElementById('watermark');
+      const msg = document.getElementById('pwMsg');
+      
+      // パスワードを 'urbanjungle' に設定した場合
+      if (pw === 'urbanjungle') {
+        watermark.style.display = 'none';
+        msg.style.color = '#46ff52';
+        msg.textContent = "透かしを解除しました。";
+        // 5秒後にメッセージを消す
+        setTimeout(() => { msg.textContent = ""; }, 5000);
+      } else {
+        msg.style.color = '#ff5252';
+        msg.textContent = "パスワードが正しくありません。";
+      }
+    }
+  </script>
+</body>
+</html>
